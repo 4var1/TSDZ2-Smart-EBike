@@ -71,6 +71,7 @@ volatile struct_config_vars m_config_vars;
 volatile uint8_t ui8_m_system_state = ERROR_NOT_INIT; // start with system error because configurations are empty at startup
 volatile uint8_t ui8_m_motor_init_state = MOTOR_INIT_STATE_RESET;
 volatile uint8_t ui8_m_motor_init_status = MOTOR_INIT_STATUS_RESET;
+volatile uint8_t ui8_m_nonzeroaftermotorinit = 0;
 volatile uint16_t ui16_g_pas_pwm_cycles_ticks = (uint16_t) PAS_ABSOLUTE_MIN_CADENCE_PWM_CYCLE_TICKS;
 uint8_t ui8_pas_cadence_rpm = 0;
 uint16_t ui16_m_pedal_torque_x100;
@@ -122,9 +123,30 @@ float               f_wheel_speed_x10;
 static uint16_t     ui16_wheel_speed_x10;
 volatile uint32_t   ui32_wheel_speed_sensor_tick_counter = 0;
 
+// Instrumentation
+
+static volatile uint8_t ui8_rx_state_machine_error =0;
+static volatile uint8_t ui8_rx_uart_int_error = 0;
+static volatile uint8_t ui8_tx_uart_int_error =0;
+static volatile uint8_t ui8_rx_int_in_count = 0;
+static volatile uint8_t ui8_rx_int_out_count = 0;
+static volatile uint8_t ui8_tx_int_in_count = 0;
+static volatile uint8_t ui8_tx_int_out_count = 0;
+static volatile uint8_t ui8_try_to_send_notready = 0;
+static volatile uint8_t ui8_statedone = 0;
+static volatile uint8_t ui8_state1 = 0;
+static volatile uint8_t ui8_state2 = 0;
+static volatile uint8_t ui8_rx_badheader = 0;
+static volatile uint8_t ui8_rx_bytes_recieved_count = 0;
+static volatile uint8_t ui8_rx_int_in_lastcount =0;
+static volatile uint8_t ui8_tx_int_in_lastcount =0;
+static volatile uint8_t ui8_rx_bytes_recieved_lastcount = 0;
+static volatile uint8_t ui8_rx_bytes_discarded_pending_packet_processing = 0;
+static volatile uint8_t ui8_crc_len_peak = 0;
+
 // UART
-#define UART_NUMBER_DATA_BYTES_TO_RECEIVE   88
-#define UART_NUMBER_DATA_BYTES_TO_SEND      29
+#define UART_NUMBER_DATA_BYTES_TO_RECEIVE   256//88
+#define UART_NUMBER_DATA_BYTES_TO_SEND      256//29
 
 volatile uint8_t ui8_received_package_flag = 0;
 volatile uint8_t ui8_rx_buffer[UART_NUMBER_DATA_BYTES_TO_RECEIVE];
@@ -132,6 +154,14 @@ volatile uint8_t ui8_rx_cnt = 0;
 volatile uint8_t ui8_rx_len = 0;
 volatile uint8_t ui8_tx_buffer[UART_NUMBER_DATA_BYTES_TO_SEND];
 static volatile uint8_t ui8_m_tx_buffer_index;
+volatile uint8_t ui8_tx_alt_buffer [UART_NUMBER_DATA_BYTES_TO_SEND];
+
+volatile uint8_t ui8_tx_buffer_in_use =0;
+volatile uint8_t ui8_rx_buffer_in_use =0;
+
+static volatile uint8_t ui8_m_tx_alt_buffer_index;
+static volatile uint8_t ui8_use_alt_tx_buffer = 0;
+
 volatile uint8_t ui8_i;
 volatile uint8_t ui8_byte_received;
 volatile uint8_t ui8_state_machine = 0;
@@ -139,6 +169,9 @@ static uint16_t  ui16_crc_rx;
 static uint16_t  ui16_crc_tx;
 volatile uint8_t ui8_message_ID = 0;
 volatile uint8_t ui8_packet_len;
+volatile uint8_t ui8_alt_packet_len;
+volatile uint8_t ui8_alt_buffer_dirty;
+
 static void communications_controller(void);
 static void communications_process_packages(uint8_t ui8_frame_type);
 
@@ -193,15 +226,55 @@ uint8_t ui8_m_adc_lights_current_offset; // lights current are measured on hardw
 // Measured on 2020.01.02 by Casainho, the following function takes about 35ms to execute
 void ebike_app_controller(void)
 {
-  throttle_read();
-  torque_sensor_read();
-  read_pas_cadence();
-  calc_pedal_force_and_torque();
-  calc_wheel_speed();
-  calc_motor_temperature();
+  motor_disable_pwm();
+  ui8_tx_alt_buffer[0] = 170;
+  ui8_tx_alt_buffer[1] = 10;
+  ui8_tx_alt_buffer[2] = ui8_rx_bytes_discarded_pending_packet_processing;
+  ui8_tx_alt_buffer[3] = ui8_rx_state_machine_error;
+  ui8_tx_alt_buffer[4] = ui8_rx_uart_int_error;
+  ui8_tx_alt_buffer[5] = ui8_tx_uart_int_error;
+
+  ui8_tx_alt_buffer[6] = ui8_rx_int_in_count - ui8_rx_int_in_lastcount;
+  ui8_rx_int_in_lastcount = ui8_rx_int_in_count;
+  ui8_tx_alt_buffer[7] = ui8_rx_int_out_count;
+  
+  ui8_tx_alt_buffer[8] = ui8_tx_int_in_count - ui8_tx_int_in_lastcount;
+ui8_tx_int_in_lastcount = ui8_tx_int_in_count;
+
+  ui8_tx_alt_buffer[9] = ui8_tx_int_out_count;
+  ui8_tx_alt_buffer[10] = ui8_try_to_send_notready;
+  ui8_tx_alt_buffer[11]= ui8_state_machine;
+  ui8_tx_alt_buffer[12] = ui8_rx_cnt;
+  ui8_tx_alt_buffer[13] = ui8_rx_len;
+  ui8_tx_alt_buffer[14] = ui8_statedone;
+  ui8_tx_alt_buffer[15] = ui8_state1;
+  ui8_tx_alt_buffer[16] = ui8_state2;
+  ui8_tx_alt_buffer[17] = ui8_rx_bytes_recieved_count - ui8_rx_bytes_recieved_lastcount;
+  ui8_rx_bytes_recieved_lastcount = ui8_rx_bytes_recieved_count;
+  ui8_tx_alt_buffer[18] = ui8_rx_badheader;
+  ui8_tx_alt_buffer[19] = ui8_crc_len_peak;
+  for (uint8_t i = 0; i < 30; i++) {ui8_tx_alt_buffer[20+i] = ui8_rx_buffer[i];}
+
+
+
+
+
+
+  ui8_m_tx_alt_buffer_index = 0;
+  ui8_alt_packet_len = 50;
+  ui8_use_alt_tx_buffer = 1;
+  UART2_ITConfig(UART2_IT_TXE, ENABLE);
+  while (ui8_alt_buffer_dirty ==1);
+
+  //throttle_read();
+  //torque_sensor_read();
+  //read_pas_cadence();
+  //calc_pedal_force_and_torque();
+  //calc_wheel_speed();
+  //calc_motor_temperature();
   ebike_control_motor();
   communications_controller();
-  check_system();
+  //check_system();
 }
 
 static void ebike_control_motor(void)
@@ -209,6 +282,7 @@ static void ebike_control_motor(void)
   uint32_t ui32_temp = 0;
   uint32_t ui32_pedal_power_no_cadence_x10 = 0;
   uint32_t ui32_assist_level_factor_x1000;
+
   uint8_t ui8_tmp_pas_cadence_rpm;
   uint16_t ui16_adc_current;
   uint16_t ui16_adc_max_battery_power_current = 0;
@@ -221,7 +295,7 @@ static void ebike_control_motor(void)
   uint32_t ui32_current_amps_x10;
   uint32_t ui32_current_amps_fixed_cadence_x10;
 
-  // the ui8_m_brake_is_set is updated here only and used all over ebike_control_motor()
+/*   // the ui8_m_brake_is_set is updated here only and used all over ebike_control_motor()
   ui8_g_brake_is_set = ui8_g_brakes_state;
 
   // make sure this vars are reset to avoid repetion code on next elses
@@ -399,7 +473,7 @@ static void ebike_control_motor(void)
 
   // motor over temperature protection
   apply_temperature_limiting(&ui16_m_adc_target_current);
-
+*/
   // check if motor init delay has to be done
   switch (ui8_m_motor_init_state)
   {
@@ -425,7 +499,7 @@ static void ebike_control_motor(void)
   if(ui8_g_brake_is_set || (ui8_m_system_state != NO_ERROR))
   {
     ui16_m_adc_target_current = 0;
-  }
+  } 
 
   // check to see if we should enable the motor
   if(ui8_m_motor_enabled == 0 &&
@@ -434,10 +508,11 @@ static void ebike_control_motor(void)
   {
     ui8_m_motor_enabled = 1;
     ui8_g_duty_cycle = 0;
-    motor_enable_pwm();
+    ui8_m_nonzeroaftermotorinit = 1;
+    //motor_enable_pwm();
   }
 
-  // check to see if we should disable the motor
+/*   // check to see if we should disable the motor
   if(ui8_m_system_state != NO_ERROR ||
       (ui8_m_motor_enabled &&
       ui16_motor_get_motor_speed_erps() == 0 &&
@@ -446,9 +521,9 @@ static void ebike_control_motor(void)
   {
     ui8_m_motor_enabled = 0;
     motor_disable_pwm();
-  }
+  } */
 
-  // apply the target current if motor is enable and if not, reset the duty_cycle controller
+  /* // apply the target current if motor is enable and if not, reset the duty_cycle controller
   if(ui8_m_motor_enabled)
   {
     ebike_app_set_target_adc_motor_max_current(ui16_m_adc_target_current);
@@ -481,7 +556,7 @@ static void ebike_control_motor(void)
   {
     motor_set_pwm_duty_cycle_target(0);
   }
-
+ */
   // let's reset this counter, meaning this code is called from main loop
   ui16_main_loop_wdt_cnt_1 = 0;
 }
@@ -496,6 +571,7 @@ static void communications_controller(void)
     // just to make easy next calculations
     ui16_crc_rx = 0xffff;
     ui8_len = ui8_rx_buffer[1];
+    if (ui8_len > ui8_crc_len_peak) ui8_crc_len_peak = ui8_len;
     for (ui8_i = 0; ui8_i < ui8_len; ui8_i++)
     {
       crc16(ui8_rx_buffer[ui8_i], &ui16_crc_rx);
@@ -511,7 +587,8 @@ static void communications_controller(void)
         ui8_m_motor_init_state = MOTOR_INIT_STATE_NO_INIT;
 
       ui8_frame_type_to_send = ui8_rx_buffer[2];
-      communications_process_packages(ui8_frame_type_to_send);
+      if (ui8_tx_buffer_in_use == 0) communications_process_packages(ui8_frame_type_to_send);
+      else ui8_try_to_send_notready++;
     }
     else
     {
@@ -532,12 +609,15 @@ static void communications_controller(void)
     ui8_m_system_state |= ERROR_FATAL;
   }
 
-  if (ui8_m_motor_init_state == MOTOR_INIT_STATE_RESET)
+  if ((ui8_m_motor_init_state == MOTOR_INIT_STATE_RESET) && (ui8_m_nonzeroaftermotorinit == 0))
+  {
     communications_process_packages(COMM_FRAME_TYPE_ALIVE);
-}
+    //else communications_process_packages(ui8_tx_buffer[2]);
+}}
 
 static void communications_process_packages(uint8_t ui8_frame_type)
 {
+  
   uint8_t ui8_temp;
   uint16_t ui16_temp;
   uint32_t ui32_temp;
@@ -545,7 +625,7 @@ static void communications_process_packages(uint8_t ui8_frame_type)
   uint8_t j;
   uint8_t i;
   uint16_t ui16_adc_battery_current = ui16_g_adc_battery_current;
-
+  
   // start up byte
   ui8_tx_buffer[0] = 0x43;
   ui8_tx_buffer[2] = ui8_frame_type;
@@ -554,10 +634,9 @@ static void communications_process_packages(uint8_t ui8_frame_type)
   switch (ui8_frame_type) {
     // periodic data
     case COMM_FRAME_TYPE_PERIODIC:
-      // display will send periodic command after motor init ok, now reset so the state machine will be ready for next time
-      ui8_m_motor_init_status = MOTOR_INIT_STATUS_RESET;
+      
 
-      // assist level
+      /* // assist level
       m_config_vars.ui16_assist_level_factor_x1000 = (((uint16_t) ui8_rx_buffer[4]) << 8) + ((uint16_t) ui8_rx_buffer[3]);
 
       // lights state
@@ -581,7 +660,7 @@ static void communications_process_packages(uint8_t ui8_frame_type)
       // motor temperature limit function or throttle
       m_config_vars.ui8_temperature_limit_feature_enabled = ui8_rx_buffer[10];
 
-      m_config_vars.ui8_throttle_virtual = ui8_rx_buffer[11];
+      m_config_vars.ui8_throttle_virtual = ui8_rx_buffer[11]; */
 
       // now send data back
       // ADC 10 bits battery voltage
@@ -679,6 +758,8 @@ static void communications_process_packages(uint8_t ui8_frame_type)
       ui8_tx_buffer[26] = (uint8_t) (ui16_adc_battery_current & 0xff);
 
       ui8_len += 24;
+      // display will send periodic command after motor init ok, now reset so the state machine will be ready for next time
+      ui8_m_motor_init_status = MOTOR_INIT_STATUS_RESET;
       break;
 
     // set configurations
@@ -838,6 +919,7 @@ static void communications_process_packages(uint8_t ui8_frame_type)
 
   // prepare crc of the package
   ui16_crc_tx = 0xffff;
+  if (ui8_len > ui8_crc_len_peak) ui8_crc_len_peak = ui8_len;
   for (ui8_i = 0; ui8_i < ui8_len; ui8_i++)
   {
     crc16(ui8_tx_buffer[ui8_i], &ui16_crc_tx);
@@ -849,6 +931,8 @@ static void communications_process_packages(uint8_t ui8_frame_type)
   ui8_m_tx_buffer_index = 0;
   // start transmition
   ui8_packet_len = ui8_len+2;
+  ui8_use_alt_tx_buffer = 0;
+  ui8_tx_buffer_in_use = 1;
   UART2_ITConfig(UART2_IT_TXE, ENABLE);
 
   // get ready to get next package
@@ -1502,6 +1586,7 @@ static void throttle_read(void)
 // and disable the interrupt. The interrupt should be enable again on main loop, after the package being processed
 void UART2_RX_IRQHandler(void) __interrupt(UART2_RX_IRQHANDLER)
 {
+  ui8_rx_int_in_count ++;
   if (UART2_GetFlagStatus(UART2_FLAG_RXNE) == SET)
   {
     UART2->SR &= (uint8_t)~(UART2_FLAG_RXNE); // this may be redundant
@@ -1509,22 +1594,25 @@ void UART2_RX_IRQHandler(void) __interrupt(UART2_RX_IRQHANDLER)
     if (ui8_received_package_flag == 0) // only when package were previously processed
     {
       ui8_byte_received = UART2_ReceiveData8();
-
+      ui8_rx_bytes_recieved_count++;
       switch (ui8_state_machine)
       {
         case 0:
         if (ui8_byte_received == 0x59) { // see if we get start package byte
           ui8_rx_buffer[0] = ui8_byte_received;
           ui8_state_machine = 1;
+          ui8_state1++;
         }
         else
           ui8_state_machine = 0;
+          ui8_rx_badheader++;
         break;
 
         case 1:
           ui8_rx_buffer[1] = ui8_byte_received;
           ui8_rx_len = ui8_byte_received;
           ui8_state_machine = 2;
+          ui8_state2++;
         break;
 
         case 2:
@@ -1535,38 +1623,70 @@ void UART2_RX_IRQHandler(void) __interrupt(UART2_RX_IRQHANDLER)
         {
           ui8_rx_cnt = 0;
           ui8_state_machine = 0;
+          ui8_statedone++;
           ui8_received_package_flag = 1; // signal that we have a full package to be processed
         }
         break;
 
         default:
+        ui8_rx_state_machine_error++;
         break;
       }
     }
+    else
+    {
+      ui8_rx_bytes_discarded_pending_packet_processing++;
+    }
+    
   }
   else // if there was any error, restart our state machine
   {
     ui8_rx_cnt = 0;
     ui8_state_machine = 0;
+    ui8_rx_uart_int_error++;
   }
+  ui8_rx_int_out_count++;
 }
 
 void UART2_TX_IRQHandler(void) __interrupt(UART2_TX_IRQHANDLER)
 {
+  ui8_tx_int_in_count++;
   if (UART2_GetFlagStatus(UART2_FLAG_TXE) == SET)
   {
-    if (ui8_m_tx_buffer_index < ui8_packet_len)  // bytes to send
+    if (ui8_use_alt_tx_buffer==0)
     {
-      // clearing the TXE bit is always performed by a write to the data register
-      UART2_SendData8(ui8_tx_buffer[ui8_m_tx_buffer_index]);
-      ++ui8_m_tx_buffer_index;
-      if (ui8_m_tx_buffer_index == ui8_packet_len)
+      if (ui8_m_tx_buffer_index < ui8_packet_len)  // bytes to send
       {
-        // buffer empty
-        // disable TIEN (TXE)
-        UART2_ITConfig(UART2_IT_TXE, DISABLE);
+        // clearing the TXE bit is always performed by a write to the data register
+        UART2_SendData8(ui8_tx_buffer[ui8_m_tx_buffer_index]);
+        ++ui8_m_tx_buffer_index;
+        if (ui8_m_tx_buffer_index == ui8_packet_len)
+        {
+          // buffer empty
+          // disable TIEN (TXE)
+          UART2_ITConfig(UART2_IT_TXE, DISABLE);
+          ui8_tx_buffer_in_use = 0;
+        }
       }
     }
+    else
+    {
+      if (ui8_m_tx_alt_buffer_index < ui8_alt_packet_len)  // bytes to send
+      {
+        ui8_alt_buffer_dirty = 1;
+        // clearing the TXE bit is always performed by a write to the data register
+        UART2_SendData8(ui8_tx_alt_buffer[ui8_m_tx_alt_buffer_index]);
+        ++ui8_m_tx_alt_buffer_index;
+        if (ui8_m_tx_alt_buffer_index == ui8_alt_packet_len)
+        {
+          // buffer empty
+          // disable TIEN (TXE)
+          UART2_ITConfig(UART2_IT_TXE, DISABLE);
+          ui8_alt_buffer_dirty =0;
+        }
+      }
+    }
+    
   }
   else
   {
@@ -1574,7 +1694,9 @@ void UART2_TX_IRQHandler(void) __interrupt(UART2_TX_IRQHANDLER)
     // send a zero to clear TXE and disable the interrupt
     UART2_SendData8(0);
     UART2_ITConfig(UART2_IT_TXE, DISABLE);
+    ui8_tx_uart_int_error++;
   }
+  ui8_tx_int_out_count++;
 }
 
 struct_config_vars* get_configuration_variables (void)

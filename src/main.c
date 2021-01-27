@@ -87,7 +87,7 @@ int main(void)
     if((ui16_TIM3_counter - ui16_motor_controller_counter) > 4) // every 4ms
     {
       ui16_motor_controller_counter = ui16_TIM3_counter;
-      motor_controller();
+      //motor_controller();
       continue;
     }
 

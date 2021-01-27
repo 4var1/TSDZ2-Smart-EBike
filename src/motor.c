@@ -462,6 +462,7 @@ void motor_controller(void)
 // Measured on 2020.01.02 by Casainho, the interrupt code takes about 42us which is about 66% of the total 64us
 void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
 {
+goto skip;
   uint8_t ui8_temp;
   uint16_t ui16_adc_target_motor_max_current;
 
@@ -1035,7 +1036,8 @@ void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
         }
       }
     }
-  }
+  } 
+  skip:
 
   /****************************************************************************/
   // reload watchdog timer, every PWM cycle to avoid automatic reset of the microcontroller
