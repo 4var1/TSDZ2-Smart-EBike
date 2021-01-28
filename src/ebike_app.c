@@ -143,8 +143,14 @@ static volatile uint8_t ui8_tx_int_in_lastcount =0;
 static volatile uint8_t ui8_rx_bytes_recieved_lastcount = 0;
 static volatile uint8_t ui8_rx_bytes_discarded_pending_packet_processing = 0;
 static volatile uint8_t ui8_crc_len_peak = 0;
+static volatile uint8_t ui8_hitproblem = 0;
 
 // UART
+#define UART_RECEIVE_RINGBUFFER_SIZE   256 // Maximum size - can reduce later
+volatile uint8_t ui8_rx_ringbuffer[UART_RECEIVE_RINGBUFFER_SIZE];
+volatile uint8_t ui8_rx_ringbuffer_read_index = 0;
+volatile uint8_t ui8_rx_ringbuffer_write_index = 0;
+
 #define UART_NUMBER_DATA_BYTES_TO_RECEIVE   256//88
 #define UART_NUMBER_DATA_BYTES_TO_SEND      256//29
 
@@ -197,7 +203,7 @@ static void apply_temperature_limiting(uint16_t *ui16_target_current);
 static void apply_walk_assist(uint16_t *ui16_p_adc_target_current);
 static void apply_cruise(uint16_t *ui16_target_current);
 static void apply_throttle(uint16_t *ui16_target_current, uint8_t ui8_assist_enable);
-
+static void packet_assembler(void);
 
 // BOOST
 uint8_t   ui8_startup_boost_enable = 0;
@@ -226,13 +232,20 @@ uint8_t ui8_m_adc_lights_current_offset; // lights current are measured on hardw
 // Measured on 2020.01.02 by Casainho, the following function takes about 35ms to execute
 void ebike_app_controller(void)
 {
-  motor_disable_pwm();
-  ui8_tx_alt_buffer[0] = 170;
+  throttle_read();
+  torque_sensor_read();
+  read_pas_cadence();
+  calc_pedal_force_and_torque();
+  calc_wheel_speed();
+  calc_motor_temperature();
+  ebike_control_motor();
+  packet_assembler();
+    ui8_tx_alt_buffer[0] = 170;
   ui8_tx_alt_buffer[1] = 10;
   ui8_tx_alt_buffer[2] = ui8_rx_bytes_discarded_pending_packet_processing;
-  ui8_tx_alt_buffer[3] = ui8_rx_state_machine_error;
-  ui8_tx_alt_buffer[4] = ui8_rx_uart_int_error;
-  ui8_tx_alt_buffer[5] = ui8_tx_uart_int_error;
+  ui8_tx_alt_buffer[3] = ui8_comm_error_counter;//ui8_rx_state_machine_error;
+  ui8_tx_alt_buffer[4] = ui8_m_motor_enabled;//ui8_rx_uart_int_error;
+  ui8_tx_alt_buffer[5] = ui8_hitproblem;//ui8_tx_uart_int_error;
 
   ui8_tx_alt_buffer[6] = ui8_rx_int_in_count - ui8_rx_int_in_lastcount;
   ui8_rx_int_in_lastcount = ui8_rx_int_in_count;
@@ -265,14 +278,6 @@ ui8_tx_int_in_lastcount = ui8_tx_int_in_count;
   ui8_use_alt_tx_buffer = 1;
   UART2_ITConfig(UART2_IT_TXE, ENABLE);
   while (ui8_alt_buffer_dirty ==1);
-
-  //throttle_read();
-  //torque_sensor_read();
-  //read_pas_cadence();
-  //calc_pedal_force_and_torque();
-  //calc_wheel_speed();
-  //calc_motor_temperature();
-  ebike_control_motor();
   communications_controller();
   //check_system();
 }
@@ -295,7 +300,7 @@ static void ebike_control_motor(void)
   uint32_t ui32_current_amps_x10;
   uint32_t ui32_current_amps_fixed_cadence_x10;
 
-/*   // the ui8_m_brake_is_set is updated here only and used all over ebike_control_motor()
+   // the ui8_m_brake_is_set is updated here only and used all over ebike_control_motor()
   ui8_g_brake_is_set = ui8_g_brakes_state;
 
   // make sure this vars are reset to avoid repetion code on next elses
@@ -473,7 +478,7 @@ static void ebike_control_motor(void)
 
   // motor over temperature protection
   apply_temperature_limiting(&ui16_m_adc_target_current);
-*/
+
   // check if motor init delay has to be done
   switch (ui8_m_motor_init_state)
   {
@@ -509,10 +514,10 @@ static void ebike_control_motor(void)
     ui8_m_motor_enabled = 1;
     ui8_g_duty_cycle = 0;
     ui8_m_nonzeroaftermotorinit = 1;
-    //motor_enable_pwm();
+    motor_enable_pwm();
   }
 
-/*   // check to see if we should disable the motor
+   // check to see if we should disable the motor
   if(ui8_m_system_state != NO_ERROR ||
       (ui8_m_motor_enabled &&
       ui16_motor_get_motor_speed_erps() == 0 &&
@@ -521,9 +526,9 @@ static void ebike_control_motor(void)
   {
     ui8_m_motor_enabled = 0;
     motor_disable_pwm();
-  } */
+  } 
 
-  /* // apply the target current if motor is enable and if not, reset the duty_cycle controller
+   // apply the target current if motor is enable and if not, reset the duty_cycle controller
   if(ui8_m_motor_enabled)
   {
     ebike_app_set_target_adc_motor_max_current(ui16_m_adc_target_current);
@@ -556,7 +561,7 @@ static void ebike_control_motor(void)
   {
     motor_set_pwm_duty_cycle_target(0);
   }
- */
+ 
   // let's reset this counter, meaning this code is called from main loop
   ui16_main_loop_wdt_cnt_1 = 0;
 }
@@ -606,6 +611,7 @@ static void communications_controller(void)
   if (ui8_comm_error_counter > 10) {
     motor_disable_pwm();
     ui8_m_motor_enabled = 0;
+    ui8_hitproblem++;
     ui8_m_system_state |= ERROR_FATAL;
   }
 
@@ -636,7 +642,7 @@ static void communications_process_packages(uint8_t ui8_frame_type)
     case COMM_FRAME_TYPE_PERIODIC:
       
 
-      /* // assist level
+       // assist level
       m_config_vars.ui16_assist_level_factor_x1000 = (((uint16_t) ui8_rx_buffer[4]) << 8) + ((uint16_t) ui8_rx_buffer[3]);
 
       // lights state
@@ -660,7 +666,7 @@ static void communications_process_packages(uint8_t ui8_frame_type)
       // motor temperature limit function or throttle
       m_config_vars.ui8_temperature_limit_feature_enabled = ui8_rx_buffer[10];
 
-      m_config_vars.ui8_throttle_virtual = ui8_rx_buffer[11]; */
+      m_config_vars.ui8_throttle_virtual = ui8_rx_buffer[11];
 
       // now send data back
       // ADC 10 bits battery voltage
@@ -1581,71 +1587,76 @@ static void throttle_read(void)
 }
 
 
+// Read the input buffer and assemble data as a package, finally, signal that we have a package to process (on main slow loop)
+static void packet_assembler(void)
+{
+  if (((uint8_t)ui8_rx_ringbuffer_read_index) != ((uint8_t)ui8_rx_ringbuffer_write_index)) // Check that the buffer has some data in it...
+  {
+    if (ui8_received_package_flag == 0) // only when package were previously processed
+    {
+      while ((uint8_t)(ui8_rx_ringbuffer_read_index+0x1) != (ui8_rx_ringbuffer_write_index))
+      {
+        ui8_byte_received = ui8_rx_ringbuffer[(uint8_t)(ui8_rx_ringbuffer_read_index++)];
+        
+        switch (ui8_state_machine)
+        {
+          case 0:
+          if (ui8_byte_received == 0x59) { // see if we get start package byte
+            ui8_rx_buffer[0] = ui8_byte_received;
+            ui8_state_machine = 1;
+          }
+          else
+            ui8_state_machine = 0;
+          break;
+
+          case 1:
+            ui8_rx_buffer[1] = ui8_byte_received;
+            ui8_rx_len = ui8_byte_received;
+            ui8_state_machine = 2;
+          break;
+
+          case 2:
+          ui8_rx_buffer[ui8_rx_cnt + 2] = ui8_byte_received;
+          ++ui8_rx_cnt;
+
+          if (ui8_rx_cnt >= ui8_rx_len)
+          {
+            ui8_rx_cnt = 0;
+            ui8_state_machine = 0;
+            ui8_received_package_flag = 1; // signal that we have a full package to be processed
+          }
+          break;
+
+          default:
+          break;
+        }
+      }
+    }
+    else // if there was any error, restart our state machine
+    {
+      ui8_rx_cnt = 0;
+      ui8_state_machine = 0;
+    }
+  }
+}
+
+
 // This is the interrupt that happens when UART2 receives data. We need it to be the fastest possible and so
-// we do: receive every byte and assembly as a package, finally, signal that we have a package to process (on main slow loop)
-// and disable the interrupt. The interrupt should be enable again on main loop, after the package being processed
+// we do: receive every byte and feed into a ringbuffer for the packet assembly routine to consume.
+
 void UART2_RX_IRQHandler(void) __interrupt(UART2_RX_IRQHANDLER)
 {
-  ui8_rx_int_in_count ++;
   if (UART2_GetFlagStatus(UART2_FLAG_RXNE) == SET)
   {
     UART2->SR &= (uint8_t)~(UART2_FLAG_RXNE); // this may be redundant
 
-    if (ui8_received_package_flag == 0) // only when package were previously processed
-    {
-      ui8_byte_received = UART2_ReceiveData8();
-      ui8_rx_bytes_recieved_count++;
-      switch (ui8_state_machine)
-      {
-        case 0:
-        if (ui8_byte_received == 0x59) { // see if we get start package byte
-          ui8_rx_buffer[0] = ui8_byte_received;
-          ui8_state_machine = 1;
-          ui8_state1++;
-        }
-        else
-          ui8_state_machine = 0;
-          ui8_rx_badheader++;
-        break;
+      // Write the recieved byte to the current write position in the buffer
+      ui8_rx_ringbuffer[(uint8_t)(ui8_rx_ringbuffer_write_index)] = UART2_ReceiveData8();
 
-        case 1:
-          ui8_rx_buffer[1] = ui8_byte_received;
-          ui8_rx_len = ui8_byte_received;
-          ui8_state_machine = 2;
-          ui8_state2++;
-        break;
+      // Move the write index forward - and if it hits the read index - move the read index forward too. Effectively overwriting the oldest data in the buffer
+      if (((uint8_t)++ui8_rx_ringbuffer_write_index)==((uint8_t)ui8_rx_ringbuffer_read_index)) (uint8_t)ui8_rx_ringbuffer_read_index++;
 
-        case 2:
-        ui8_rx_buffer[ui8_rx_cnt + 2] = ui8_byte_received;
-        ++ui8_rx_cnt;
-
-        if (ui8_rx_cnt >= ui8_rx_len)
-        {
-          ui8_rx_cnt = 0;
-          ui8_state_machine = 0;
-          ui8_statedone++;
-          ui8_received_package_flag = 1; // signal that we have a full package to be processed
-        }
-        break;
-
-        default:
-        ui8_rx_state_machine_error++;
-        break;
-      }
-    }
-    else
-    {
-      ui8_rx_bytes_discarded_pending_packet_processing++;
-    }
-    
   }
-  else // if there was any error, restart our state machine
-  {
-    ui8_rx_cnt = 0;
-    ui8_state_machine = 0;
-    ui8_rx_uart_int_error++;
-  }
-  ui8_rx_int_out_count++;
 }
 
 void UART2_TX_IRQHandler(void) __interrupt(UART2_TX_IRQHANDLER)
