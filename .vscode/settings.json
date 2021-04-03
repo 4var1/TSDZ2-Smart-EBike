@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "interrupts.h": "c",
+        "stm8s_tim4.h": "c"
+    }
+}

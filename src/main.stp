@@ -1,0 +1,100 @@
+;	STMicroelectronics Project file
+
+[Version]
+Keyword=ST7Project
+Number=1.3
+
+[Project]
+Name=main
+Toolset=
+Executable=c:\users\avari\documents\github\tsdz2\tsdz2-smart-ebike\src\main.stp
+
+[Config]
+0=Config.0
+1=Config.1
+
+[Config.0]
+ConfigName=Debug
+Target=
+OutputFolder=.
+Debug=main.elf
+
+[Config.1]
+ConfigName=Release
+Target=
+OutputFolder=.
+Debug=main.elf
+
+[Root]
+ElemType=Project
+PathName=main
+Config.0=Root.Config.0
+Config.1=Root.Config.1
+
+[Root.Config.0]
+Settings.0.0=Root.Config.0.Settings.0
+Settings.0.1=Root.Config.0.Settings.1
+Settings.0.2=Root.Config.0.Settings.2
+
+[Root.Config.1]
+Settings.1.0=Root.Config.1.Settings.0
+Settings.1.1=Root.Config.1.Settings.1
+Settings.1.2=Root.Config.1.Settings.2
+
+[Root.Config.0.Settings.0]
+String.6.0=2021,1,29,10,50,0
+String.100.0=ST Assembler Linker
+String.100.1=ST7 Cosmic
+String.100.2=STM8 Cosmic
+String.100.3=ST7 Metrowerks V1.1
+String.100.4=Raisonance
+String.101.0=Raisonance
+String.102.0=
+String.103.0=bin
+String.104.0=INC\STM8;INC\ST7;INC
+String.105.0=LIB\ST7
+String.106.0=.
+String.107.0=
+Int.108=0
+
+[Root.Config.0.Settings.1]
+String.6.0=2021,1,29,10,50,0
+String.100.0=main.elf
+String.101.0=
+String.102.0=
+String.103.0=.\;
+String.107.0=
+
+[Root.Config.0.Settings.2]
+String.2.0=
+String.6.0=2021,1,29,10,50,0
+String.100.0=STM8S105S6
+
+[Root.Config.1.Settings.0]
+String.6.0=2021,1,29,10,50,0
+String.100.0=ST Assembler Linker
+String.100.1=ST7 Cosmic
+String.100.2=STM8 Cosmic
+String.100.3=ST7 Metrowerks V1.1
+String.100.4=Raisonance
+String.101.0=Raisonance
+String.102.0=
+String.103.0=bin
+String.104.0=INC\STM8;INC\ST7;INC
+String.105.0=LIB\ST7
+String.106.0=.
+String.107.0=
+Int.108=0
+
+[Root.Config.1.Settings.1]
+String.6.0=2021,1,29,10,50,0
+String.100.0=main.elf
+String.101.0=
+String.102.0=
+String.103.0=.\;
+String.107.0=
+
+[Root.Config.1.Settings.2]
+String.2.0=
+String.6.0=2021,1,29,10,50,0
+String.100.0=STM8S105S6

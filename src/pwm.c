@@ -27,7 +27,7 @@ void pwm_init_bipolar_4q (void)
   }
 
   TIM1_TimeBaseInit(0, // TIM1_Prescaler = 0
-        TIM1_COUNTERMODE_CENTERALIGNED1,
+        TIM1_COUNTERMODE_CENTERALIGNED3,//TIM1_COUNTERMODE_CENTERALIGNED1
         (421 - 1), // clock = 16MHz; counter period = 842; PWM freq = 16MHz / 842 = 19kHz;
         //(BUT PWM center aligned mode needs twice the frequency)
         1); // will fire the TIM1_IT_UPDATE at every PWM period cycle
@@ -73,7 +73,7 @@ void pwm_init_bipolar_4q (void)
   // OC4 is always syncronized with PWM
   TIM1_OC4Init(TIM1_OCMODE_PWM1,
          TIM1_OUTPUTSTATE_DISABLE,
-         285, // timming for interrupt firing (hand adjusted)
+         210, // was 285 timming for interrupt firing (hand adjusted)
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCIDLESTATE_RESET);
 
@@ -85,6 +85,19 @@ void pwm_init_bipolar_4q (void)
       TIM1_BREAK_DISABLE,
       TIM1_BREAKPOLARITY_LOW,
       TIM1_AUTOMATICOUTPUT_DISABLE);
+
+    // Select OC4REF signal as trigger output (TRGO)
+    // ADC conversion is started on the rising edge of TRGO signal
+    // In TIM1_OCMODE_PWM1 mode, OC4REF is high between 210 down counting and 210 up counting of TIM1 counter
+    // -> The rising edge of TRGO is generated when TIM1 is down counting and the value is 210.
+    // Battery current is on ADC channel 5 and in scan mode the value is sampled
+    // after 3(ADC Prescaler)*14(ADC Clocks per conversion)*5(channel nr)=210 CPU clock cycles
+    // This means the battery current is sampled exactly in the middle of PWM cycle (TIM1 counter = 0)
+    TIM1->CR2 = (uint8_t)((uint8_t)(TIM1->CR2 | ((uint8_t) 0x70)));
+
+    // TIM1 IRQ priority = 2. Priority increases from 1 (min priority) to 3 (max priority)
+    ITC_SetSoftwarePriority(ITC_IRQ_TIM1_CAPCOM, ITC_PRIORITYLEVEL_2);
+
 
   TIM1_ITConfig(TIM1_IT_CC4, ENABLE);
   TIM1_Cmd(ENABLE); // TIM1 counter enable

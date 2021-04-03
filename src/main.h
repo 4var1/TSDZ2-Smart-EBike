@@ -12,7 +12,28 @@
 #include "config.h"
 
 //#define DISABLE_PWM_CHANNELS_1_3
+#define HALL_COUNTER_OFFSET_UP                  44
+#define HALL_COUNTER_OFFSET_DOWN                23
+#define FW_HALL_COUNTER_OFFSET_MAX              6
 
+/*---------------------------------------------------------
+ NOTE: regarding duty cycle (PWM) ramping
+
+ Do not change these values if not sure of the effects!
+
+ A lower value of the duty cycle inverse step will mean
+ a faster acceleration. Be careful not to choose too
+ low values for acceleration.
+ ---------------------------------------------------------*/
+
+
+#define PWM_DUTY_CYCLE_MAX                                        254
+#define MIDDLE_SVM_TABLE                                          106
+#define MIDDLE_PWM_COUNTER                                        105
+#define PWM_DUTY_CYCLE_STARTUP                                    30    // Initial PWM Duty Cycle at motor startup
+
+
+#define HALL_COUNTER_FREQ                         250000U // 250KHz or 4us
 #define PWM_CYCLES_COUNTER_MAX                    3800    // 5 erps minimum speed; 1/5 = 200ms; 200ms/52.6us = 3800
 #define PWM_CYCLES_SECOND                         19011L  // 1 / 64us(PWM period)
 #define PWM_DUTY_CYCLE_MAX                        254
@@ -26,6 +47,17 @@
 #define MOTOR_ROTOR_ANGLE_270                     (191 + MOTOR_ROTOR_OFFSET_ANGLE)
 #define MOTOR_ROTOR_ANGLE_330                     (233 + MOTOR_ROTOR_OFFSET_ANGLE)
 #define MOTOR_ROTOR_ANGLE_30                      (20  + MOTOR_ROTOR_OFFSET_ANGLE)
+
+#define MOTOR_ROTOR_OFFSET_ANGLE  (uint8_t)4
+#define PHASE_ROTOR_ANGLE_30  (uint8_t)((uint8_t)21  + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define PHASE_ROTOR_ANGLE_90  (uint8_t)((uint8_t)64  + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define PHASE_ROTOR_ANGLE_150 (uint8_t)((uint8_t)107 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define PHASE_ROTOR_ANGLE_210 (uint8_t)((uint8_t)149 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define PHASE_ROTOR_ANGLE_270 (uint8_t)((uint8_t)192 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+#define PHASE_ROTOR_ANGLE_330 (uint8_t)((uint8_t)235 + MOTOR_ROTOR_OFFSET_ANGLE - (uint8_t)64)
+
+
+#define MOTOR_ROTOR_INTERPOLATION_MIN_ERPS      10
 
 // motor maximum rotation
 #define MOTOR_OVER_SPEED_ERPS                     700 // 675 is equal to 120 cadence, as TSDZ2 has a reduction ratio of 41.8

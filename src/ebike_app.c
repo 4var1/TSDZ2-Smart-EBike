@@ -240,9 +240,13 @@ static void ebike_control_motor(void)
     if (m_config_vars.ui16_assist_level_factor_x1000 > 0)
     {
       ui8_assist_enable = 1;
+      //motor_set_pwm_duty_cycle_target(10);
 
       // calc regular assist level
       ui32_assist_level_factor_x1000 = (uint32_t) m_config_vars.ui16_assist_level_factor_x1000;
+
+      //ui32_current_amps_x10_final = 10;
+      //goto skipmc;
 
       // current mode
       if (m_config_vars.ui8_motor_current_control_mode)
@@ -293,6 +297,8 @@ static void ebike_control_motor(void)
         }
       }
 
+      skipmc:
+
       // 6.410 = 1 / 0.156 (each ADC step for current)
       // 6.410 * 8 = ~51
       ui16_adc_current = (uint16_t) ((ui32_current_amps_x10_final * 51) / 80);
@@ -341,6 +347,7 @@ static void ebike_control_motor(void)
 
       // set here (assist level > 0) our battery max current
       ui16_adc_battery_current_max = ui16_m_adc_battery_current_max;
+      
     }
     else
     {

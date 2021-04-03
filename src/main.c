@@ -52,12 +52,20 @@ void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER);
 void UART2_RX_IRQHandler(void) __interrupt(UART2_RX_IRQHANDLER);
 void UART2_TX_IRQHandler(void) __interrupt(UART2_TX_IRQHANDLER);
 
+
+// TIM4 Overflow interrupt (called every 1ms)
+void TIM4_IRQHandler(void) __interrupt(TIM4_OVF_IRQHANDLER);
+// Hall Sensor Signal interrupt
+void HALL_SENSOR_A_PORT_IRQHandler(void) __interrupt(EXTI_HALL_A_IRQ);
+void HALL_SENSOR_B_PORT_IRQHandler(void) __interrupt(EXTI_HALL_B_IRQ);
+void HALL_SENSOR_C_PORT_IRQHandler(void) __interrupt(EXTI_HALL_C_IRQ);
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(void)
 {
-  uint16_t ui16_TIM3_counter = 0;
+  uint16_t ui16_1mS_counter = 0;
   uint16_t ui16_ebike_app_controller_counter = 0;
   uint16_t ui16_motor_controller_counter = 0;
 
@@ -68,8 +76,9 @@ int main(void)
   while (brake_is_set()) ; // hold here while brake is pressed -- this is a protection for development
   lights_init();
   uart2_init();
-  timer2_init();
-  timer3_init();
+  //timer2_init();
+  //timer3_init();
+  timers_init();
   adc_init();
   torque_sensor_init();
   pas_init();
@@ -83,18 +92,18 @@ int main(void)
   {
     // because of continue; at the end of each if code block that will stop the while (1) loop there,
     // the first if block code will have the higher priority over any others
-    ui16_TIM3_counter = TIM3_GetCounter();
-    if((ui16_TIM3_counter - ui16_motor_controller_counter) > 4) // every 4ms
+    ui16_1mS_counter = ui8_tim4_counter;
+    if((ui16_1mS_counter - ui16_motor_controller_counter) > 4) // every 4ms
     {
-      ui16_motor_controller_counter = ui16_TIM3_counter;
+      ui16_motor_controller_counter = ui16_1mS_counter;
       motor_controller();
       continue;
     }
 
-    ui16_TIM3_counter = TIM3_GetCounter();
-    if((ui16_TIM3_counter - ui16_ebike_app_controller_counter) > 50) // every 50ms
+    //ui16_1mS_counter = TIM3_GetCounter();
+    if((ui16_1mS_counter - ui16_ebike_app_controller_counter) > 50) // every 50ms
     {
-      ui16_ebike_app_controller_counter = ui16_TIM3_counter;
+      ui16_ebike_app_controller_counter = ui16_1mS_counter;
       ebike_app_controller();
       continue;
     }

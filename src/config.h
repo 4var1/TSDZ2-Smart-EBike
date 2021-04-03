@@ -37,7 +37,7 @@
 //
 // This value should be near 0.
 // You can try to tune with the whell on the air, full throttle and look at batttery current: adjust for lower battery current
-#define MOTOR_ROTOR_OFFSET_ANGLE 10
+//#define MOTOR_ROTOR_OFFSET_ANGLE 10
 
 // This value is ERPS speed after which a transition happens from sinewave no interpolation to have
 // interpolation 60 degrees and must be found experimentally but a value of 25 may be good
