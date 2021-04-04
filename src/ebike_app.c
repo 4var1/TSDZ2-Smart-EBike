@@ -1177,17 +1177,17 @@ static void apply_walk_assist(uint16_t *ui16_p_adc_target_current)
   // use max current as the limit of current
   *ui16_p_adc_target_current = ui16_m_adc_motor_current_max;
 
-  // check so that walk assist level factor is not too large (too powerful), if it is -> limit the value
-  if(m_config_vars.ui16_assist_level_factor_x1000 > 100)
-  {
-    // limit and set walk assist PWM to some safe value, not too powerful 
-    ui8_m_walk_assist_target_duty_cycle = 100;
-  }
-  else
-  {
+  // // check so that walk assist level factor is not too large (too powerful), if it is -> limit the value
+  // if(m_config_vars.ui16_assist_level_factor_x1000 > 100)
+  // {
+  //   // limit and set walk assist PWM to some safe value, not too powerful 
+  //   ui8_m_walk_assist_target_duty_cycle = 100;
+  // }
+  // else
+  // {
     // set walk assist PWM to the target duty cycle from user defined value on display (walk assist level factor)
-    ui8_m_walk_assist_target_duty_cycle = (uint8_t) m_config_vars.ui16_assist_level_factor_x1000;
-  }
+    ui8_m_walk_assist_target_duty_cycle = (uint8_t) m_config_vars.ui16_assist_level_factor_x1000 * 2;
+  // }
 }
 
 static void apply_cruise(uint16_t *ui16_target_current)
