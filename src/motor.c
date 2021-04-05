@@ -377,6 +377,11 @@ uint16_t ui16_PWM_cycles_counter = 1;
 uint16_t ui16_PWM_cycles_counter_6 = 1;
 uint16_t ui16_PWM_cycles_counter_total = 0xffff;
 
+// battery current variables
+static uint8_t ui8_adc_battery_current_acc = 0;
+static uint8_t ui8_adc_motor_phase_current;
+volatile uint8_t ui8_adc_battery_current_filtered = 0;
+
 uint16_t ui16_max_motor_speed_erps = (uint16_t) MOTOR_OVER_SPEED_ERPS;
 static volatile uint16_t ui16_motor_speed_erps = 0;
 uint8_t ui8_svm_table_index = 0;
@@ -436,6 +441,10 @@ volatile uint16_t ui16_g_adc_battery_current_filtered;
 uint16_t ui16_adc_motor_current_accumulated = 0;
 volatile uint16_t ui16_g_adc_motor_current_filtered;
 
+//_ui8_adc_battery_current_acc   =  ui16_adc_battery_current_accumulated
+//_ui8_adc_battery_current_filtered  =   ui16_g_adc_battery_current_filtered
+//_ui8_adc_motor_phase_current =  ui16_g_adc_motor_current
+
 volatile uint16_t ui16_g_adc_battery_current;
 volatile uint16_t ui16_g_adc_motor_current;
 uint8_t ui8_current_controller_counter = 0;
@@ -446,6 +455,8 @@ volatile uint16_t ui16_g_adc_target_battery_max_current_fw;
 
 volatile uint16_t ui16_g_adc_target_motor_max_current;
 volatile uint16_t ui16_g_adc_target_motor_max_current_fw;
+
+uint16_t ui16_adc_target_motor_max_current;
 
 static uint8_t ui8_m_pas_state;
 static uint8_t ui8_m_pas_state_old;
@@ -539,7 +550,7 @@ void motor_controller(void)
 void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
 {
 //  uint8_t ui8_temp;
-  uint16_t ui16_adc_target_motor_max_current;
+  
 
       // bit 5 of TIM1->CR1 contains counter direction (0=up, 1=down)
   if (TIM1->CR1 & 0x10) 
@@ -561,7 +572,7 @@ void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
         // ui8_temp stores the current Hall sensor state (was ui8_g_hall_sensors_state)
         // ui16_b stores the Hall sensor counter value of the last transition
         // ui16_a stores the current Hall sensor counter value
-ui8_g_hall_sensors_state = ui8_temp; // ui8_g_hall_sensors_state value isn't used any more - but it is in the periodic packet so keeping for troubleshooting
+
 
         /****************************************************************************/
         // run next code only when the hall state changes
@@ -889,6 +900,7 @@ ui8_g_hall_sensors_state = ui8_temp; // ui8_g_hall_sensors_state value isn't use
 
 
 
+        // ui8_g_hall_sensors_state = ui8_temp; // ui8_g_hall_sensors_state value isn't used any more - but it is in the periodic packet so keeping for troubleshooting
 
   //   // /****************************************************************************/
   //   // // read hall sensor signals and:
@@ -1191,6 +1203,75 @@ ui8_g_hall_sensors_state = ui8_temp; // ui8_g_hall_sensors_state value isn't use
     ADC1->CSR = 0x07; // clear EOC flag first (selected also channel 7)
     ADC1->CR1 |= ADC1_CR1_ADON; // start ADC1 conversion
 
+
+
+
+//         /********************* *******************************************************/
+//         /*
+//         // Read battery current
+//         // Left alignment: Read MSB first then read LSB !
+//         ui8_temp = ADC1->DB5RH;
+//         ui8_temp <<= 2;
+//         ui8_temp |= ADC1->DB5RL
+//         ui8_adc_battery_current_acc >>= 1;
+//         ui8_adc_battery_current_filtered >>= 1;
+//         ui8_adc_battery_current_acc = (uint8_t)(ui8_temp >> 1) + ui8_adc_battery_current_acc;
+//         ui8_adc_battery_current_filtered = (uint8_t)(ui8_adc_battery_current_acc >> 1) + ui8_adc_battery_current_filtered;
+
+//         // calculate motor phase current ADC value
+//         if (ui8_g_duty_cycle > 0)
+//             ui8_adc_motor_phase_current = (uint16_t)((uint16_t)((uint16_t)ui8_adc_battery_current_filtered << 6)) / ui8_g_duty_cycle;
+//         else
+//             ui8_adc_motor_phase_current = 0;
+
+//         // clear EOC flag (and select channel 7)
+//         ADC1->CSR = 0x07;
+//         */
+//         #ifndef __CDT_PARSER__ // avoid Eclipse syntax check
+//         __asm
+//         ld  a, 0x53EA                               // ui8_temp = ADC1->DB5RH;
+//         sll a                                       // ui8_temp <<= 2;
+//         sll a
+//         or  a, 0x53EB                               // ui8_temp |= ADC1->DB5RL;
+//         ld  _ui8_temp+0, a                          // > New to get the non accumulated value
+//         srl _ui8_adc_battery_current_acc+0          // ui8_adc_battery_current_acc >>= 1;
+//         srl a                                       // ui8_adc_battery_current_acc = (uint8_t)(ui8_temp >> 1) + ui8_adc_battery_current_acc;
+//         add a, _ui8_adc_battery_current_acc+0
+//         ld  _ui8_adc_battery_current_acc+0, a
+//         srl _ui8_adc_battery_current_filtered+0     // ui8_adc_battery_current_filtered >>= 1;
+//         srl a                                       // ui8_adc_battery_current_filtered = (uint8_t)(ui8_adc_battery_current_acc >> 1) + ui8_adc_battery_current_filtered;
+//         add a, _ui8_adc_battery_current_filtered+0
+//         ld  _ui8_adc_battery_current_filtered+0, a
+
+//         tnz _ui8_g_duty_cycle+0                     // if (ui8_g_duty_cycle > 0)
+//         jreq 00051$
+//         clrw    x          // ui8_adc_motor_phase_current = (ui8_adc_battery_current_filtered << 6)) / ui8_g_duty_cycle;
+//         ld  xh, a
+//         srlw    x
+//         srlw    x
+//         ld  a, _ui8_g_duty_cycle+0
+//         div    x, a
+//         ld  a, xl
+//         ld  _ui8_adc_motor_phase_current+0, a
+//         jra 00052$
+//     00051$:
+//         clr _ui8_adc_motor_phase_current+0      // ui8_adc_motor_phase_current = 0;
+//     00052$:
+//         mov 0x5400+0, #0x07                     // ADC1->CSR = 0x07;
+//         __endasm;
+//         #endif
+
+
+
+// //_ui8_adc_battery_current_acc   =  ui16_adc_battery_current_accumulated
+// //_ui8_adc_battery_current_filtered  =   ui16_g_adc_battery_current_filtered
+// //_ui8_adc_motor_phase_current =  ui16_g_adc_motor_current
+// ui16_g_adc_battery_current = ui8_temp;
+// ui16_g_adc_motor_current = ui8_adc_motor_phase_current;
+// ui16_adc_battery_current_accumulated = ui8_adc_battery_current_acc;
+// ui16_g_adc_battery_current_filtered = ui8_adc_battery_current_filtered;
+
+
 /****************************************************************************/
     // check brakes state
 
@@ -1321,7 +1402,7 @@ ui8_g_hall_sensors_state = ui8_temp; // ui8_g_hall_sensors_state value isn't use
 
     /****************************************************************************/
     // ramp up ADC battery current
-
+    
     // field weakening has a higher current value to provide the same torque
     if (ui8_g_field_weakening_enable_state)
       ui16_adc_target_motor_max_current = ui16_g_adc_target_motor_max_current_fw;
@@ -1798,7 +1879,7 @@ void motor_enable_pwm(void)
          TIM1_OUTPUTSTATE_ENABLE,
          TIM1_OUTPUTNSTATE_ENABLE,
 #endif
-         255, // initial duty_cycle value
+         128, // initial duty_cycle value
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCIDLESTATE_RESET,
@@ -1807,7 +1888,7 @@ void motor_enable_pwm(void)
   TIM1_OC2Init(TIM1_OCMODE_PWM1,
          TIM1_OUTPUTSTATE_ENABLE,
          TIM1_OUTPUTNSTATE_ENABLE,
-         255, // initial duty_cycle value
+         128, // initial duty_cycle value
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCIDLESTATE_RESET,
@@ -1821,7 +1902,7 @@ void motor_enable_pwm(void)
          TIM1_OUTPUTSTATE_ENABLE,
          TIM1_OUTPUTNSTATE_ENABLE,
 #endif
-         255, // initial duty_cycle value
+         128, // initial duty_cycle value
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCIDLESTATE_RESET,
@@ -1833,7 +1914,7 @@ void motor_disable_pwm(void)
   TIM1_OC1Init(TIM1_OCMODE_PWM1,
          TIM1_OUTPUTSTATE_DISABLE,
          TIM1_OUTPUTNSTATE_DISABLE,
-         255, // initial duty_cycle value
+         128, // initial duty_cycle value
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCIDLESTATE_RESET,
@@ -1842,7 +1923,7 @@ void motor_disable_pwm(void)
   TIM1_OC2Init(TIM1_OCMODE_PWM1,
          TIM1_OUTPUTSTATE_DISABLE,
          TIM1_OUTPUTNSTATE_DISABLE,
-         255, // initial duty_cycle value
+         128, // initial duty_cycle value
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCPOLARITY_HIGH,
          TIM1_OCIDLESTATE_RESET,
