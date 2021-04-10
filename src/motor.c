@@ -549,12 +549,8 @@ void motor_controller(void)
 // Measured on 2020.01.02 by Casainho, the interrupt code takes about 42us which is about 66% of the total 64us
 void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
 {
-//  uint8_t ui8_temp;
-  
-
       // bit 5 of TIM1->CR1 contains counter direction (0=up, 1=down)
-  if (TIM1->CR1 & 0x10) 
-  {
+  if (TIM1->CR1 & 0x10) {
       #ifndef __CDT_PARSER__ // disable Eclipse syntax check
       __asm
           push cc             // save current Interrupt Mask (I1,I0 bits of CC register)
@@ -572,7 +568,6 @@ void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
         // ui8_temp stores the current Hall sensor state (was ui8_g_hall_sensors_state)
         // ui16_b stores the Hall sensor counter value of the last transition
         // ui16_a stores the current Hall sensor counter value
-
 
         /****************************************************************************/
         // run next code only when the hall state changes
@@ -690,7 +685,7 @@ void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
             tnz _ui8_motor_commutation_type+0
             jreq 00011$
             // ui16_a = ((ui16_a - ui16_b) + ui8_fw_hall_counter_offset + ui8_hall_counter_offset) << 2;
-            ld  a, _ui8_fw_hall_counter_offset+0
+            ld  a, _ui8_g_field_weakening_angle+0 //_ui8_fw_hall_counter_offset+0
             add a, _ui8_hall_counter_offset+0
             clrw    x
             ld  xl, a
@@ -1159,15 +1154,20 @@ void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
     /****************************************************************************/
     // read battery current ADC value | should happen at middle of the PWM duty_cycle
     // disable scan mode
-    ADC1->CR2 &= (uint8_t)(~ADC1_CR2_SCAN);
+    // ADC1->CR2 &= (uint8_t)(~ADC1_CR2_SCAN);
     
-    // clear EOC flag first (selected also channel 5)
-    ADC1->CSR = 0x05;
+    // // clear EOC flag first (selected also channel 5)
+    // ADC1->CSR = 0x05;
     
-    // start ADC1 conversion
-    ADC1->CR1 |= ADC1_CR1_ADON;
-    while (!(ADC1->CSR & ADC1_FLAG_EOC)) ;
+    // // start ADC1 conversion
+    // ADC1->CR1 |= ADC1_CR1_ADON;
+    // while (!(ADC1->CSR & ADC1_FLAG_EOC)) ;
     ui16_g_adc_battery_current = UI16_ADC_10_BIT_BATTERY_CURRENT;
+    // /****************************************************************************/
+    // // trigger ADC conversion of all channels (scan conversion, buffered)
+    ADC1->CR2 |= ADC1_CR2_SCAN; // enable scan mode
+    ADC1->CSR = 0x07; // clear EOC flag first (selected also channel 7)
+    ADC1->CR1 |= ADC1_CR1_ADON; // start ADC1 conversion
 
     // we ignore low values of the battery current < 5 to avoid issues with other consumers than the motor (such as integrated 6v lights)
     // Piecewise linear is better than a step, to avoid limit cycles.
@@ -1197,11 +1197,7 @@ void TIM1_CAP_COM_IRQHandler(void) __interrupt(TIM1_CAP_COM_IRQHANDLER)
       ui16_g_adc_motor_current =0;// (ui16_g_adc_battery_current << 8) ;//0;
     }
 
-    /****************************************************************************/
-    // trigger ADC conversion of all channels (scan conversion, buffered)
-    ADC1->CR2 |= ADC1_CR2_SCAN; // enable scan mode
-    ADC1->CSR = 0x07; // clear EOC flag first (selected also channel 7)
-    ADC1->CR1 |= ADC1_CR1_ADON; // start ADC1 conversion
+
 
 
 

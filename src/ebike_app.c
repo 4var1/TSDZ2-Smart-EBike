@@ -319,16 +319,16 @@ static void ebike_control_motor(void)
 
       // calc regular assist level
       ui32_assist_level_factor_x1000 = (uint32_t) m_config_vars.ui16_assist_level_factor_x1000;
-      if (1==1)
-      {
-        ebike_app_set_target_adc_battery_max_current(ui16_m_adc_battery_current_max);
-        motor_set_pwm_duty_cycle_target(1);
-        ui16_m_adc_target_current = m_config_vars.ui8_battery_current_min_adc;
-        //ui16_adc_max_battery_power_current = (((uint32_t) m_config_vars.ui8_target_battery_max_power_div25) * 160) / ((uint32_t) ui16_battery_voltage_filtered);
-        //ui32_current_amps_x10_final = 10;
-      }
-      else
-      {
+      // if (1==1)
+      // {
+      //   ebike_app_set_target_adc_battery_max_current(ui16_m_adc_battery_current_max);
+      //   motor_set_pwm_duty_cycle_target(ui32_assist_level_factor_x1000);
+      //   ui16_m_adc_target_current = m_config_vars.ui8_battery_current_min_adc;
+      //   //ui16_adc_max_battery_power_current = (((uint32_t) m_config_vars.ui8_target_battery_max_power_div25) * 160) / ((uint32_t) ui16_battery_voltage_filtered);
+      //   //ui32_current_amps_x10_final = 10;
+      // }
+      // else
+      // {
 
 
          //goto skipmc;
@@ -434,8 +434,8 @@ static void ebike_control_motor(void)
         //skipmc:
         // set here (assist level > 0) our battery max current
         ui16_adc_battery_current_max = ui16_m_adc_battery_current_max;
-      }
-       //skipmc:
+      // }
+      //  //skipmc:
     }
     else
     {
