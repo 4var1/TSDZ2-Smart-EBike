@@ -122,14 +122,26 @@
 ---------------------------------------------------------*/
 #define PEDAL_TORQUE_X100 52
 
+#define MOTOR_PWM_TICKS_PER_SECOND                                16000 // Motor PWM Control Frequency 16Khz - is this correct?
+#define PAS_MIN_CADENCE                                           10
+#define PAS_MAX_CADENCE                                           150
 
-// PAS
+#define PAS_ABSOLUTE_MAX_CADENCE_PWM_CYCLE_TICKS                  (((MOTOR_PWM_TICKS_PER_SECOND/ PAS_NUMBER_MAGNETS) / PAS_MAX_CADENCE) * 60)
+#define PAS_ABSOLUTE_MIN_CADENCE_PWM_CYCLE_TICKS                  (((MOTOR_PWM_TICKS_PER_SECOND/ PAS_NUMBER_MAGNETS) / PAS_MIN_CADENCE) * 60)
+
+// 56604 cadence in RPM = 60 / (ui16_g_pas_pwm_cycles_ticks * PAS_NUMBER_MAGNETS * 0.000053)
+
+
+
+#define PAS_CADENCE_CONST                                         ((60 * MOTOR_PWM_TICKS_PER_SECOND) / PAS_NUMBER_MAGNETS)
+
 #define PAS_NUMBER_MAGNETS                                        20 // see note below
 #define PAS_NUMBER_MAGNETS_X2                                     (PAS_NUMBER_MAGNETS * 2)
 #define PAS_NUMBER_MAGNETS_1_4                                    5
 #define PAS_NUMBER_MAGNETS_3_4                                    15
-#define PAS_ABSOLUTE_MAX_CADENCE_PWM_CYCLE_TICKS                  (7625 / PAS_NUMBER_MAGNETS)   // max hard limit to 150 RPM PAS cadence, see note below
-#define PAS_ABSOLUTE_MIN_CADENCE_PWM_CYCLE_TICKS                  (114375 / PAS_NUMBER_MAGNETS)  // min hard limit to 10 RPM PAS cadence, see note below
+//#define PAS_ABSOLUTE_MAX_CADENCE_PWM_CYCLE_TICKS                  (7625 / PAS_NUMBER_MAGNETS)   // max hard limit to 150 RPM PAS cadence, see note below
+//#define PAS_ABSOLUTE_MIN_CADENCE_PWM_CYCLE_TICKS                  (114375 / PAS_NUMBER_MAGNETS)  // min hard limit to 10 RPM PAS cadence, see note below
+
 
 /*---------------------------------------------------------
   NOTE: regarding PAS

@@ -1527,7 +1527,7 @@ static void read_pas_cadence(void)
   else
   {
     // cadence in RPM = 60 / (ui16_g_pas_pwm_cycles_ticks * PAS_NUMBER_MAGNETS * 0.000053)
-    ui8_pas_cadence_rpm = (uint8_t) (((uint16_t) 56604) / ui16_g_pas_pwm_cycles_ticks);
+    ui8_pas_cadence_rpm = (uint8_t) (((uint16_t) PAS_CADENCE_CONST) / ui16_g_pas_pwm_cycles_ticks);
   }
 }
 
