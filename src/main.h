@@ -122,18 +122,18 @@
 ---------------------------------------------------------*/
 #define PEDAL_TORQUE_X100 52
 
-#define MOTOR_PWM_TICKS_PER_SECOND                                16000 // Motor PWM Control Frequency 16Khz - is this correct?
+#define MOTOR_PWM_TICKS_PER_SECOND                                19000 // Motor PWM Control Frequency 16MHz/842 = 
 #define PAS_MIN_CADENCE                                           10
 #define PAS_MAX_CADENCE                                           150
 
-#define PAS_ABSOLUTE_MAX_CADENCE_PWM_CYCLE_TICKS                  (((MOTOR_PWM_TICKS_PER_SECOND/ PAS_NUMBER_MAGNETS) / PAS_MAX_CADENCE) * 60)
-#define PAS_ABSOLUTE_MIN_CADENCE_PWM_CYCLE_TICKS                  (((MOTOR_PWM_TICKS_PER_SECOND/ PAS_NUMBER_MAGNETS) / PAS_MIN_CADENCE) * 60)
+#define PAS_ABSOLUTE_MAX_CADENCE_PWM_CYCLE_TICKS                  380 //(((MOTOR_PWM_TICKS_PER_SECOND/ PAS_NUMBER_MAGNETS) * 60) / PAS_MAX_CADENCE)
+#define PAS_ABSOLUTE_MIN_CADENCE_PWM_CYCLE_TICKS                  5700 //(((MOTOR_PWM_TICKS_PER_SECOND/ PAS_NUMBER_MAGNETS) * 60) / PAS_MIN_CADENCE)
 
 // 56604 cadence in RPM = 60 / (ui16_g_pas_pwm_cycles_ticks * PAS_NUMBER_MAGNETS * 0.000053)
 
 
 
-#define PAS_CADENCE_CONST                                         ((60 * MOTOR_PWM_TICKS_PER_SECOND) / PAS_NUMBER_MAGNETS)
+#define PAS_CADENCE_CONST                                         57000 //((60 * MOTOR_PWM_TICKS_PER_SECOND) / PAS_NUMBER_MAGNETS)
 
 #define PAS_NUMBER_MAGNETS                                        20 // see note below
 #define PAS_NUMBER_MAGNETS_X2                                     (PAS_NUMBER_MAGNETS * 2)

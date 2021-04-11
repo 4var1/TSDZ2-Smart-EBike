@@ -553,8 +553,10 @@ static void ebike_control_motor(void)
   // apply the target current if motor is enable and if not, reset the duty_cycle controller
   if(ui8_m_motor_enabled)
   {
-    ebike_app_set_target_adc_motor_max_current(ui16_m_adc_target_current);
+    ebike_app_set_target_adc_motor_max_current(ui16_m_adc_target_current/4); // << PROBLEM HERE - CURRENT IS TOO HIGH - or is it - what is going on....
     ebike_app_set_target_adc_battery_max_current(ui16_adc_battery_current_max);
+    //ebike_app_set_target_adc_motor_max_current(m_config_vars.ui8_battery_current_min_adc);
+    //ebike_app_set_target_adc_battery_max_current(m_config_vars.ui8_battery_current_min_adc);
   }
   else
   {

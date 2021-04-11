@@ -49,69 +49,69 @@ uint8_t ui8_asin_table [128] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 
    30, 30, 31, 31, 32, 32, 33, 33, 33, 34, 34, 35, 35, 36, 36, 37, 38, 38, 39, 39, 40, 40, 41, 42, 42, 43, 43, 44,
     45, 46, 46, 47, 48, 49, 50, 51, 52, 53, 54, 56, 58, 59};
 
-uint8_t ui8_sin_table [SIN_TABLE_LEN] =
-{
-    0 ,
-    3 ,
-    6 ,
-    9 ,
-    12  ,
-    16  ,
-    19  ,
-    22  ,
-    25  ,
-    28  ,
-    31  ,
-    34  ,
-    37  ,
-    40  ,
-    43  ,
-    46  ,
-    49  ,
-    52  ,
-    54  ,
-    57  ,
-    60  ,
-    63  ,
-    66  ,
-    68  ,
-    71  ,
-    73  ,
-    76  ,
-    78  ,
-    81  ,
-    83  ,
-    86  ,
-    88  ,
-    90  ,
-    92  ,
-    95  ,
-    97  ,
-    99  ,
-    101 ,
-    102 ,
-    104 ,
-    106 ,
-    108 ,
-    109 ,
-    111 ,
-    113 ,
-    114 ,
-    115 ,
-    117 ,
-    118 ,
-    119 ,
-    120 ,
-    121 ,
-    122 ,
-    123 ,
-    124 ,
-    125 ,
-    125 ,
-    126 ,
-    126 ,
-    127
-};
+// uint8_t ui8_sin_table [SIN_TABLE_LEN] =
+// {
+//     0 ,
+//     3 ,
+//     6 ,
+//     9 ,
+//     12  ,
+//     16  ,
+//     19  ,
+//     22  ,
+//     25  ,
+//     28  ,
+//     31  ,
+//     34  ,
+//     37  ,
+//     40  ,
+//     43  ,
+//     46  ,
+//     49  ,
+//     52  ,
+//     54  ,
+//     57  ,
+//     60  ,
+//     63  ,
+//     66  ,
+//     68  ,
+//     71  ,
+//     73  ,
+//     76  ,
+//     78  ,
+//     81  ,
+//     83  ,
+//     86  ,
+//     88  ,
+//     90  ,
+//     92  ,
+//     95  ,
+//     97  ,
+//     99  ,
+//     101 ,
+//     102 ,
+//     104 ,
+//     106 ,
+//     108 ,
+//     109 ,
+//     111 ,
+//     113 ,
+//     114 ,
+//     115 ,
+//     117 ,
+//     118 ,
+//     119 ,
+//     120 ,
+//     121 ,
+//     122 ,
+//     123 ,
+//     124 ,
+//     125 ,
+//     125 ,
+//     126 ,
+//     126 ,
+//     127
+// };
 
 uint16_t ui16_PWM_cycles_counter = 1;
 uint16_t ui16_PWM_cycles_counter_6 = 1;
@@ -1569,30 +1569,30 @@ void calc_foc_angle(void)
   ui8_g_foc_angle = (uint8_t) (ui16_foc_angle_accumulated >> 4);
 }
 
-// calc asin also converts the final result to degrees
+// // calc asin also converts the final result to degrees
+// uint8_t asin_table (uint8_t ui8_inverted_angle_x128)
+// {
+//   uint8_t ui8_index = 0;
+
+//   while (ui8_index < SIN_TABLE_LEN)
+//   {
+//     if (ui8_inverted_angle_x128 < ui8_sin_table [ui8_index])
+//     {
+//       break;
+//     }
+
+//     ui8_index++;
+//   }
+
+//   // first value of table is 0 so ui8_index will always increment to at least 1 and return 0
+//   return ui8_index--;
+// }
+
+//calc asin also converts the final result to degrees
 uint8_t asin_table (uint8_t ui8_inverted_angle_x128)
 {
-  uint8_t ui8_index = 0;
-
-  while (ui8_index < SIN_TABLE_LEN)
-  {
-    if (ui8_inverted_angle_x128 < ui8_sin_table [ui8_index])
-    {
-      break;
-    }
-
-    ui8_index++;
-  }
-
-  // first value of table is 0 so ui8_index will always increment to at least 1 and return 0
-  return ui8_index--;
+ return ui8_asin_table[ui8_inverted_angle_x128 & 127U];
 }
-
-// calc asin also converts the final result to degrees
-//uint8_t asin_table (uint8_t ui8_inverted_angle_x128)
-//{
-//  return ui8_asin_table[ui8_inverted_angle_x128 & 127U];
-//}
 
 
 void motor_set_adc_battery_voltage_cut_off(uint8_t ui8_value)
