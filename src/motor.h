@@ -28,13 +28,14 @@ extern volatile uint16_t ui16_g_adc_target_battery_max_current_fw;
 extern volatile uint16_t ui16_g_adc_target_motor_max_current;
 extern volatile uint16_t ui16_g_adc_target_motor_max_current_fw;
 extern volatile uint16_t ui16_g_adc_battery_current_filtered;
-extern volatile uint8_t ui8_adc_battery_current_filtered;
 extern volatile uint16_t ui16_g_adc_motor_current_filtered;
 extern volatile uint8_t ui8_g_field_weakening_angle;
 extern volatile uint8_t ui8_g_field_weakening_enable;
 extern volatile uint8_t ui8_g_field_weakening_enable_state;
 extern volatile uint8_t ui8_g_pas_tick_counter;
+// New for mspider65 code
 
+extern volatile uint16_t ui16_hall_counter_total;
 /***************************************************************************************/
 // Motor interface
 void hall_sensor_init (void); // must be called before using the motor

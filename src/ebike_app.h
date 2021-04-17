@@ -18,6 +18,17 @@
 #define EBIKE_APP_STATE_MOTOR_COOL      3
 #define EBIKE_APP_STATE_MOTOR_RUNNING   4
 
+extern uint8_t ui8_debug_data_1;
+extern uint8_t ui8_debug_data_2;
+extern uint8_t ui8_debug_data_3;
+extern uint8_t ui8_debug_data_4;
+extern uint8_t ui8_debug_data_5;
+extern uint8_t ui8_debug_data_6;
+extern uint8_t ui8_debug_data_7;
+extern uint8_t ui8_debug_data_8;
+extern uint8_t ui8_debug_data_9;
+extern uint8_t ui8_debug_data_10;
+
 typedef struct
 {
   uint16_t ui16_assist_level_factor_x1000;
