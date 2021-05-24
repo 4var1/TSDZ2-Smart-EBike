@@ -1559,7 +1559,7 @@ static void packet_assembler(void)
 
 void UART2_RX_IRQHandler(void) __interrupt(UART2_RX_IRQHANDLER)
 {
-  if ((UART2->SR & (uint8_t)UART2_FLAG_RXNE) != (uint8_t)0x00) //(UART2_GetFlagStatus(UART2_FLAG_RXNE) == SET) - save a few cycles
+  if (UART2_GetFlagStatus(UART2_FLAG_RXNE) == SET)
   {
     UART2->SR &= (uint8_t)~(UART2_FLAG_RXNE); // this may be redundant
 
@@ -1574,12 +1574,12 @@ void UART2_RX_IRQHandler(void) __interrupt(UART2_RX_IRQHANDLER)
 
 void UART2_TX_IRQHandler(void) __interrupt(UART2_TX_IRQHANDLER)
 {
-  if ((UART2->SR & (uint8_t)UART2_FLAG_TXE) != (uint8_t)0x00) //(UART2_GetFlagStatus(UART2_FLAG_TXE) == SET)
+  if (UART2_GetFlagStatus(UART2_FLAG_TXE) == SET)
   {
     if (ui8_m_tx_buffer_index < ui8_packet_len)  // bytes to send
     {
       // clearing the TXE bit is always performed by a write to the data register
-      UART2->DR = ui8_tx_buffer[ui8_m_tx_buffer_index];//UART2_SendData8(ui8_tx_buffer[ui8_m_tx_buffer_index]);
+      UART2_SendData8(ui8_tx_buffer[ui8_m_tx_buffer_index]);
       ++ui8_m_tx_buffer_index;
       if (ui8_m_tx_buffer_index == ui8_packet_len)
       {
